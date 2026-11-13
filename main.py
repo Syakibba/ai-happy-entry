@@ -312,6 +312,187 @@ def draw_window_light(img):
                 img.blend(x, y, WALL_BOT, 0.10)
 
 
+def draw_picture_frame(img):
+    # Small wooden frame on the wall with a tiny fish picture inside.
+    fx0, fy0, fx1, fy1 = 430, 70, 610, 180
+    wood = (150, 92, 52)
+    wood_dark = (118, 70, 40)
+    sea = (150, 200, 210)
+    fish = (240, 150, 80)
+    for y in range(fy0, fy1):
+        for x in range(fx0, fx1):
+            border = (x < fx0 + 14 or x >= fx1 - 14 or
+                      y < fy0 + 14 or y >= fy1 - 14)
+            if border:
+                c = wood if (x + y) % 7 else wood_dark
+            else:
+                t = (y - fy0) / (fy1 - fy0 - 28)
+                c = lerp((140, 190, 205), (110, 160, 185), clamp(t))
+                # tiny orange fish swimming, with a bubble trail
+                if ellipse_mask(fx0 + 92, fy0 + 52, 20, 10, x, y):
+                    c = fish
+                if x >= fx0 + 106 and x <= fx0 + 122 and \
+                        abs(y - (fy0 + 52)) <= (fx0 + 122 - x) // 2 + 2:
+                    c = fish
+                if ellipse_mask(fx0 + 84, fy0 + 50, 2, 2, x, y):
+                    c = OUTLINE
+                if ellipse_mask(fx0 + 74, fy0 + 40, 2, 2, x, y):
+                    c = lerp(c, CREAM, 0.7)
+                if ellipse_mask(fx0 + 66, fy0 + 30, 3, 3, x, y):
+                    c = lerp(c, CREAM, 0.5)
+                # little seaweed at the bottom of the picture
+                for k, sw in ((-10, 5), (2, 7), (14, 4)):
+                    wx = fx0 + 55 + k
+                    if abs(x - wx) <= sw and fy1 - 14 - 18 <= y < fy1 - 14:
+                        sway = int(math.sin(y / 6.0) * 2)
+                        if abs(x - wx - sway) <= sw - 1:
+                            c = lerp(c, (90, 150, 90), 0.8)
+                if disk(fx0 + 88, fy0 + 48, 1, x, y):
+                    c = OUTLINE
+            img.set(x, y, c)
+    # nail + soft drop shadow on the wall
+    img.set((fx0 + fx1) // 2, fy0 - 8, OUTLINE)
+    img.set((fx0 + fx1) // 2, fy0 - 7, OUTLINE)
+    for y in range(fy1, fy1 + 10):
+        for x in range(fx0 + 8, fx1 + 6):
+            a = 0.14 * (1 - (y - fy1) / 10.0)
+            img.blend(x, y, OUTLINE, a)
+
+
+def draw_plant(img):
+    # Potted plant on the floor to the right of the mug.
+    px, py = 630, 560
+    pot_top, pot_bot = py, py + 78
+    terracotta = (206, 108, 70)
+    terra_dark = (172, 84, 52)
+    leaf = (96, 150, 92)
+    leaf_dark = (70, 122, 72)
+    # rim and tapered pot body
+    for x in range(px - 58, px + 58):
+        img.set(x, pot_top, terra_dark)
+        img.set(x, pot_top + 1, terra_dark)
+    for y in range(pot_top + 2, pot_bot):
+        t = (y - pot_top) / (pot_bot - pot_top)
+        w = int(58 - 16 * t)
+        c = lerp(terracotta, terra_dark, t)
+        for x in range(px - w, px + w):
+            img.set(x, y, c)
+    # soil
+    for y in range(pot_top + 2, pot_top + 14):
+        for x in range(px - 50, px + 50):
+            img.set(x, y, (96, 62, 40))
+    # stems with leaves: fanned fronds
+    for ang_deg in (-52, -30, -8, 12, 34, 55):
+        ang = math.radians(ang_deg)
+        for s in range(0, 95, 1):
+            lx = px + math.sin(ang) * s
+            ly = pot_top - math.cos(ang) * s
+            img.set(int(lx), int(ly), leaf_dark)
+            if s > 30:
+                for k in (-1, 1):
+                    dx = int(math.cos(ang) * 6) * k
+                    for w in range(1, 6):
+                        if s % 3 == 0:
+                            img.set(int(lx) + dx * w // 5, int(ly) - w, leaf)
+                            img.set(int(lx) + dx * w // 5, int(ly) + w, leaf)
+    # a couple of accent leaves near the tips
+    for tx, ty in ((px - 66, pot_top - 62), (px + 40, pot_top - 88), (px + 8, pot_top - 96)):
+        for y in range(ty - 9, ty + 9):
+            for x in range(tx - 16, tx + 16):
+                if ellipse_mask(tx, ty, 15, 7, x, y):
+                    img.set(x, y, leaf)
+    # soft shadow under the pot
+    for y in range(pot_bot, pot_bot + 10):
+        for x in range(px - 60, px + 60):
+            a = 0.16 * (1 - (y - pot_bot) / 10.0)
+            img.blend(x, y, OUTLINE, a)
+
+
+def draw_rug(img):
+    # Round woven rug under the cat, drawn before the cat so it sits behind.
+    cx, cy = 340, 560
+    r = 205
+    base = (206, 120, 84)
+    ring = (176, 92, 66)
+    fringe = (232, 200, 160)
+    for y in range(cy - r - 6, cy + r + 6):
+        for x in range(cx - r - 12, cx + r + 12):
+            d = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
+            if d <= r:
+                c = base
+                band = (int(d / 16) % 3)
+                if band == 1:
+                    c = lerp(c, ring, 0.5)
+                if d > r - 22:
+                    c = lerp(c, fringe, 0.55)
+                # woven texture
+                if (x * 3 + y * 5) % 23 == 0:
+                    c = lerp(c, OUTLINE, 0.10)
+                img.set(x, y, c)
+            elif r < d <= r + 6 and (x + y * 2) % 5 < 3:
+                # little fringe tassels around the edge
+                img.set(x, y, lerp(fringe, OUTLINE, 0.15))
+
+
+def draw_curtains(img):
+    # Warm curtains hanging beside the window, gently swaying.
+    rail_y = 48
+    cloth = (222, 128, 96)
+    cloth_dark = (188, 100, 74)
+    for x in range(40, 346):
+        img.set(x, rail_y, (120, 70, 40))
+    img.set(44, rail_y - 6, (120, 70, 40))
+    img.set(340, rail_y - 6, (120, 70, 40))
+    for side, x0, x1 in (("left", 26, 78), ("right", 272, 330)):
+        for y in range(rail_y, 430):
+            t = (y - rail_y) / (430 - rail_y)
+            sway = math.sin(t * 6.5) * (6 if side == "right" else -4) * t
+            for x in range(x0, x1):
+                u = (x - x0) / max(1, x1 - x0)
+                fold = 0.5 + 0.5 * math.sin(u * math.pi * 3 + y * 0.05)
+                c = lerp(cloth, cloth_dark, fold * 0.5)
+                img.set(x + int(sway), y, c)
+                if u > 0.85:
+                    img.blend(x + int(sway), y, OUTLINE, 0.12)
+    # tie-backs cinching the curtains at mid height
+    for y in (300, 302):
+        for side in ((26, 80), (270, 332)):
+            for x in range(side[0], side[1]):
+                img.set(x, y, (150, 92, 52))
+
+
+def draw_dust_motes(img):
+    # Sparkling dust motes drifting in the sunbeam (deterministic lattice).
+    for i in range(60):
+        t = i / 60.0
+        x = int(80 + (i * 97 % 420) + math.sin(i * 1.7) * 24)
+        y = int(150 + (i * 61 % 380) + math.cos(i * 2.3) * 18)
+        if not (60 <= x < 520 and 60 < y < 620):
+            continue
+        twinkle = 0.10 + 0.22 * ((math.sin(i * 3.1) + 1) / 2)
+        r = 1 + (i % 3 == 0)
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                if dx * dx + dy * dy <= r * r:
+                    img.blend(x + dx, y + dy, CREAM, twinkle * (1 - math.hypot(dx, dy) / (r + 1)))
+
+
+def draw_richer_floor(img):
+    # Extra floor detail: knots, subtle highlight where the sun hits, scuffs.
+    wall_h = int(H * 0.34)
+    for y in range(wall_h, img.h):
+        for x in range(img.w):
+            # occasional wood knots
+            for kx, ky in ((130, 600), (600, 660), (250, 690)):
+                d = math.hypot(x - kx, (y - ky) * 2.2)
+                if d < 9:
+                    img.blend(x, y, OUTLINE, 0.18 * (1 - d / 9))
+            # sun sheen streaks aligned with the beam
+            u = (x + y * 0.45 - 380) / 520.0
+            if -0.1 < u < 1.0 and (x * 5 + y * 3) % 149 == 0:
+                img.blend(x, y, SUN, 0.10)
+
+
 def draw_warm_glow(img):
     # gentle warm vignette: softly dimmer toward the edges, cosy focus on the cat
     for y in range(img.h):
@@ -351,11 +532,17 @@ def main():
     os.makedirs(out, exist_ok=True)
     img = Canvas(W, H)
     draw_floorboards(img)
+    draw_richer_floor(img)
+    draw_rug(img)
+    draw_plant(img)
     draw_window_frame(img)
+    draw_curtains(img)
+    draw_picture_frame(img)
     draw_sun_patch(img)
     draw_window_light(img)
     draw_mug(img)
     draw_cat(img)
+    draw_dust_motes(img)
     draw_warm_glow(img)
     n = write_png(os.path.join(out, "entry.png"), img)
     print(f"wrote entry.png ({W}x{H}, {n} bytes)")
