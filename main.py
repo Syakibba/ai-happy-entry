@@ -70,6 +70,48 @@ def disk(cx, cy, r, x, y):
     return ellipse_mask(cx, cy, r, r, x, y)
 
 
+def draw_window_frame(img):
+    # A simple wooden window on the left wall, with warm sky and a sun glow.
+    wx0, wy0, wx1, wy1 = 60, 60, 300, 210
+    frame = (140, 84, 48)
+    sill = (122, 74, 44)
+    # frame border (thick)
+    for y in range(wy0 - 12, wy1 + 12):
+        for x in range(wx0 - 12, wx1 + 12):
+            inside = wx0 - 12 <= x < wx1 + 12 and wy0 - 12 <= y < wy1 + 12
+            glass = wx0 <= x < wx1 and wy0 <= y < wy1
+            if not inside:
+                continue
+            if not glass:
+                c = lerp(frame, sill, (y - wy0) / max(1, wy1 - wy0))
+                img.set(x, y, c)
+            else:
+                # warm evening sky through the glass
+                t = (x - wx0 + (y - wy0) * 0.6) / (wx1 - wx0 + (wy1 - wy0) * 0.6)
+                c = lerp((255, 214, 150), (255, 178, 118), clamp(t))
+                # little sun low in the window
+                if disk(wx0 + (wx1 - wx0) * 0.32, wy0 + (wy1 - wy0) * 0.62, 26, x, y):
+                    c = lerp(c, (255, 246, 200), 0.85)
+                img.set(x, y, c)
+    # cross mullions
+    midx = (wx0 + wx1) // 2
+    midy = (wy0 + wy1) // 2
+    for y in range(wy0, wy1):
+        for x in range(midx - 3, midx + 4):
+            img.set(x, y, frame)
+    for x in range(wx0, wx1):
+        for y in range(midy - 3, midy + 4):
+            img.set(x, y, frame)
+    # sill with soft shadow
+    for y in range(wy1 + 12, wy1 + 24):
+        for x in range(wx0 - 22, wx1 + 22):
+            img.set(x, y, sill)
+    for y in range(wy1 + 24, wy1 + 32):
+        for x in range(wx0 - 22, wx1 + 22):
+            a = 0.18 * (1 - (y - wy1 - 24) / 8)
+            img.blend(x, y, OUTLINE, a)
+
+
 def draw_sun_patch(img):
     # Soft pool of sunlight: warm overlay, diagonal from upper left.
     for y in range(img.h):
@@ -163,22 +205,40 @@ def draw_cat(img):
                 else:
                     c = CAT_MAIN
                 img.set(x, y, c)
-    # closed eyes: gentle arcs
+    # closed eyes: gentle arcs with tiny lashes
     for ex in (hx - 36, hx + 30):
         for i in range(-14, 15):
             dy = int(math.sin(i / 14 * math.pi) * 5)
             for w in (-1, 0, 1):
                 img.set(ex + i, hy + 6 + dy + w, OUTLINE)
+        for li in (-12, 12):
+            ly = int(math.sin(li / 14 * math.pi) * 5)
+            img.set(ex + li, hy + 6 + ly, OUTLINE)
+            img.set(ex + li, hy + 7 + ly, OUTLINE)
     # nose
     for dy in range(-4, 5):
         for dx in range(-5, 6):
             if dx * dx + dy * dy <= 12:
                 img.set(hx - 3, hy + 26 + dy, PINK)
-    # happy closed-mouth smile (down-turned open arc)
+    # happy closed-mouth smile (down-turned open arc) with corner dimples
     for i in range(-9, 10):
         dy = int(math.sin(i / 9 * math.pi) * 6)
         img.set(hx - 3 + i, hy + 34 + dy, OUTLINE)
         img.set(hx - 3 + i, hy + 35 + dy, OUTLINE)
+    for ci in (-11, 11):
+        img.set(hx - 3 + ci, hy + 31, OUTLINE)
+        img.set(hx - 3 + ci, hy + 32, OUTLINE)
+        img.set(hx - 3 + ci, hy + 30, OUTLINE)
+    # whiskers: three thin lines on each cheek
+    for wx_s, wy_s, wy_e in ((hx - 88, hy + 22, hy + 14),
+                             (hx - 88, hy + 30, hy + 28),
+                             (hx - 88, hy + 38, hy + 42),
+                             (hx + 82, hy + 22, hy + 14),
+                             (hx + 82, hy + 30, hy + 28),
+                             (hx + 82, hy + 38, hy + 42)):
+        n = abs(wy_e - wy_s)
+        for i in range(n + 1):
+            img.blend(wx_s + (4 if i < 6 else 0), wy_s + int((wy_e - wy_s) * i / max(1, n)), OUTLINE, 0.55)
     # blush
     for bx in (hx - 55, hx + 48):
         for y in range(hy + 22, hy + 34):
@@ -291,6 +351,7 @@ def main():
     os.makedirs(out, exist_ok=True)
     img = Canvas(W, H)
     draw_floorboards(img)
+    draw_window_frame(img)
     draw_sun_patch(img)
     draw_window_light(img)
     draw_mug(img)
