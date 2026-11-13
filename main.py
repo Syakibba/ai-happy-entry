@@ -78,7 +78,7 @@ def draw_sun_patch(img):
             u = (x + y * 0.45 - 380) / 520.0
             edge = clamp(1.0 - u)
             soft = clamp((1.0 - abs(u) * 2.2))
-            a = 0.55 * edge * edge * (0.4 + 0.6 * soft)
+            a = 0.62 * edge * edge * (0.4 + 0.6 * soft)
             if a > 0.01:
                 img.blend(x, y, SUN, a)
 
@@ -259,9 +259,9 @@ def draw_warm_glow(img):
             dx = (x - W / 2) / (W / 2)
             dy = (y - H / 2) / (H / 2)
             d = math.sqrt(dx * dx + dy * dy) / math.sqrt(2)
-            if d > 0.55:
-                a = (d - 0.55) * 0.35
-                img.blend(x, y, (150, 84, 48), min(0.5, a))
+            if d > 0.6:
+                a = (d - 0.6) * 0.22
+                img.blend(x, y, (150, 84, 48), min(0.35, a))
 
 
 def write_png(path, img):
